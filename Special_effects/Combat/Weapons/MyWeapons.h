@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "../../Core/Base/WeaponType.h"
 #include "MyWeapons.generated.h"
 

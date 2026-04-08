@@ -14,6 +14,14 @@
 #include "Components/TimelineComponent.h"
 #include "Operation_character.generated.h"
 
+UENUM(BlueprintType)
+enum class EClimbType : uint8
+{
+	None UMETA(DisplayName = "无操作"),
+	Climb UMETA(DisplayName = "攀爬"),
+	Vault UMETA(DisplayName = "翻越")
+};
+
 class UInputMappingContext;
 class UInputAction;
 
@@ -55,7 +63,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Move;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> IA_Look;
+	TObjectPtr<UInputAction> IA_Look_x;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Look_y;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Jump;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
@@ -165,7 +175,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|移动")
 	void Move(const FInputActionValue &Value);
 	UFUNCTION(BlueprintCallable, Category = "Character|旋转")
-	void Look(const FInputActionValue &Value);
+	void Look_x(const FInputActionValue &Value);
+	UFUNCTION(BlueprintCallable, Category = "Character|旋转")
+	void Look_y(const FInputActionValue &Value);
 	UFUNCTION(BlueprintCallable, Category = "Character|跳跃")
 	void Jumps(const FInputActionValue &Value);
 	UFUNCTION(BlueprintCallable, Category = "Character|控制")
@@ -195,6 +207,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
 			  meta = (DisplayName = "切换攀爬状态"))
 	void SwitchClimb();
+	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
+			  meta = (DisplayName = "判断攀爬类型"))
+	EClimbType CheckClimbType();
 	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
 			  meta = (DisplayName = "是否进入攀爬状态"))
 	bool ComeinClimb();

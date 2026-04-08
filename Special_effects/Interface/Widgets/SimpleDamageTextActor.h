@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/World.h"
 #include "SimpleDamageTextActor.generated.h"
 
 UCLASS()

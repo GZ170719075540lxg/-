@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "../MyDataTable.h"
+#include "Styling/SlateBrush.h"
 #include "MyDataTable_iteam.generated.h"
 
 /**

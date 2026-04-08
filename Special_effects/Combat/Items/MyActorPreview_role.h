@@ -7,6 +7,8 @@
 #include "../../Core/Base/Sock.h"
 #include "../../Combat/Weapons/MyWeapons.h"
 #include "GameFramework/Actor.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "MyActorPreview_role.generated.h"
 

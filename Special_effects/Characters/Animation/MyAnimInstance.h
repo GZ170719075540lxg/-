@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-class UAnimInstance;
+#include "Animation/AnimInstance.h"
 #include "MyAnimInstance.generated.h"
 
 /**

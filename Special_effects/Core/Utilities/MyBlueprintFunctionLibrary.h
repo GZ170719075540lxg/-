@@ -8,6 +8,7 @@
 #include "ImageUtils.h"
 #include "GameFramework/Actor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Modules/ModuleManager.h"
 #include "MyBlueprintFunctionLibrary.generated.h"
 
 /**

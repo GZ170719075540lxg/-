@@ -12,6 +12,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "../../Characters/RoboticArm.h"
 
 #include "UTestWebsockets.generated.h"

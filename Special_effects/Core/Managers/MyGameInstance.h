@@ -7,6 +7,7 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "TimerManager.h"
+#include "Styling/SlateBrush.h"
 #include "../../Data/Tables/MyDataTable.h"
 #include "LevelSequence.h"
 

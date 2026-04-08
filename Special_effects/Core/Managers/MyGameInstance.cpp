@@ -7,6 +7,7 @@
 #include "Common/TcpSocketBuilder.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformTime.h"
+#include "Modules/ModuleManager.h"
 
 UMyGameInstance::UMyGameInstance()
     : ClientSocket(nullptr), ServerIP(TEXT("127.0.0.1")), ServerPort(8767), bIsReceiving(false)

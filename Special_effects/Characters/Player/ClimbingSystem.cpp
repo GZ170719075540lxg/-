@@ -28,7 +28,7 @@ FClimbDetectionResult UClimbingSystem::DetectClimbableSurface(ACharacter *Charac
     FVector ForwardVector = Character->GetActorForwardVector();
     FVector EndLocation = StartLocation + ForwardVector * DetectionDistance;
 
-    // 绘制调试?
+    // 绘制调试线
     DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Red, false, 2.0f, 0, 2.0f);
 
     FHitResult HitResult;
@@ -84,7 +84,7 @@ bool UClimbingSystem::CanMoveToNextClimbPosition(FVector CurrentLocation, FVecto
         ECC_Visibility,
         QueryParams);
 
-    // 绘制调试?
+    // 绘制调试线
     DrawDebugLine(GetWorld(), CurrentLocation, TargetLocation, FColor::Blue, false, 1.0f, 0, 1.0f);
 
     return bHit && IsValidClimbingSurface(HitResult.ImpactNormal, NAME_None);
@@ -94,7 +94,7 @@ FVector UClimbingSystem::CalculateOptimalClimbPosition(const FHitResult &HitResu
 {
     FVector OptimalPosition = HitResult.ImpactPoint;
 
-    // 根据碰撞结果调整位置，确保角色不会卡在墙?
+    // 根据碰撞结果调整位置，确保角色不会卡在墙内
     if (HitResult.GetActor())
     {
         UCapsuleComponent *CapsuleComp = Cast<UCapsuleComponent>(HitResult.GetActor()->GetComponentByClass(UCapsuleComponent::StaticClass()));
@@ -122,13 +122,13 @@ FVector UClimbingSystem::CalculateRelativeClimbPosition(ACharacter *Character, c
     FVector ImpactPoint = HitResult.ImpactPoint;
     FVector SurfaceNormal = HitResult.ImpactNormal;
 
-    // 计算角色到碰撞点的相对偏?
+    // 计算角色到碰撞点的相对偏移
     FVector RelativeOffset = ImpactPoint - CharacterLocation;
     float DistanceToWall = RelativeOffset.Size();
 
-    UE_LOG(LogTemp, Warning, TEXT("=== 攀爬位置计算调?==="));
+    UE_LOG(LogTemp, Warning, TEXT("=== 攀爬位置计算调试 ==="));
     UE_LOG(LogTemp, Warning, TEXT("角色位置: %s"), *CharacterLocation.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("碰撞? %s"), *ImpactPoint.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("碰撞点: %s"), *ImpactPoint.ToString());
     UE_LOG(LogTemp, Warning, TEXT("相对偏移: %s (距离: %.2f)"), *RelativeOffset.ToString(), DistanceToWall);
 
     // 计算安全距离（考虑角色胶囊体半径）
@@ -151,7 +151,7 @@ FVector UClimbingSystem::CalculateRelativeClimbPosition(ACharacter *Character, c
         HorizontalNormal.Z = 0.0f;
         HorizontalNormal.Normalize();
 
-        // 在XY平面上保持相对位置关?
+        // 在XY平面上保持相对位置关系
         FVector HorizontalOffset = RelativeOffset;
         HorizontalOffset.Z = 0.0f;
         float HorizontalDistance = HorizontalOffset.Size();
@@ -160,7 +160,7 @@ FVector UClimbingSystem::CalculateRelativeClimbPosition(ACharacter *Character, c
         {
             FVector HorizontalDirection = HorizontalOffset.GetSafeNormal();
 
-            // 计算新的水平位置：从角色当前位置加上适当的偏?
+            // 计算新的水平位置：从角色当前位置加上适当的偏移
             FVector NewHorizontalPosition = FVector(CharacterLocation.X, CharacterLocation.Y, 0.0f) +
                                             HorizontalDirection * (SafeDistance + 20.0f);
 
@@ -181,7 +181,7 @@ FVector UClimbingSystem::CalculateRelativeClimbPosition(ACharacter *Character, c
     }
     else
     {
-        // 如果距离很近，直接使用角色当前位?
+        // 如果距离很近，直接使用角色当前位置
         FinalPosition = CharacterLocation;
         FinalPosition.Z = CharacterLocation.Z;
         UE_LOG(LogTemp, Warning, TEXT("距离过近，使用当前位置"));
@@ -203,7 +203,7 @@ bool UClimbingSystem::DetectVaultPoint(ACharacter *Character, FVector &OutVaultP
     FVector StartLocation = Character->GetActorLocation();
     FVector ForwardVector = Character->GetActorForwardVector();
 
-    // 向前检测边?
+    // 向前检测边缘
     for (int32 i = 0; i < 10; i++)
     {
         FVector CheckLocation = StartLocation + ForwardVector * i * 20.0f;
@@ -220,7 +220,7 @@ bool UClimbingSystem::DetectVaultPoint(ACharacter *Character, FVector &OutVaultP
             ECC_Visibility,
             QueryParams);
 
-        // 绘制调试?
+        // 绘制调试线
         DrawDebugLine(GetWorld(), CheckLocation, DownLocation, FColor::Green, false, 1.0f, 0, 1.0f);
 
         if (bHit && CanVaultOverEdge(HitResult.ImpactPoint))
@@ -265,7 +265,7 @@ bool UClimbingSystem::IsValidClimbingSurface(const FVector &SurfaceNormal, const
     float VerticalDot = FMath::Abs(FVector::DotProduct(SurfaceNormal, FVector::UpVector));
     float HorizontalDot = FMath::Abs(FVector::DotProduct(SurfaceNormal, FVector::ForwardVector));
 
-    // 表面法线不能过于垂直或水?
+    // 表面法线不能过于垂直或水平
     if (VerticalDot > 0.95f || HorizontalDot > 0.95f)
     {
         return false;
@@ -278,14 +278,14 @@ FRotator UClimbingSystem::CalculateWallFacingRotation(const FVector &WallNormal)
 {
     FRotator TargetRotation = WallNormal.Rotation();
     TargetRotation.Yaw += 180.0f;  // 角色面向墙面
-    TargetRotation.Pitch *= -1.0f; // 调整俯仰?
+    TargetRotation.Pitch *= -1.0f; // 调整俯仰角
 
     return TargetRotation;
 }
 
 bool UClimbingSystem::CanVaultOverEdge(FVector EdgeLocation, float CharacterHeight)
 {
-    // 检测边缘上方是否有足够的空?
+    // 检测边缘上方是否有足够的空间
     FHitResult HitResult;
     FVector UpCheckStart = EdgeLocation + FVector::UpVector * CharacterHeight;
     FVector UpCheckEnd = EdgeLocation + FVector::UpVector * (CharacterHeight + 50.0f);
@@ -296,10 +296,10 @@ bool UClimbingSystem::CanVaultOverEdge(FVector EdgeLocation, float CharacterHeig
         UpCheckEnd,
         ECC_Visibility);
 
-    // 绘制调试?
+    // 绘制调试线
     DrawDebugLine(GetWorld(), UpCheckStart, UpCheckEnd, bHitAbove ? FColor::Red : FColor::Green, false, 2.0f, 0, 2.0f);
 
-    return !bHitAbove; // 如果上方没有障碍物，则可以翻?
+    return !bHitAbove; // 如果上方没有障碍物，则可以翻越
 }
 
 void UClimbingSystem::ControlClimbingSpeed(ACharacter *Character, float MaxClimbSpeed)
@@ -314,7 +314,7 @@ void UClimbingSystem::ControlClimbingSpeed(ACharacter *Character, float MaxClimb
     FVector CurrentVelocity = MovementComp->Velocity;
     float CurrentSpeed = CurrentVelocity.Size();
 
-    // 如果当前速度超过最大攀爬速度，则限制?
+    // 如果当前速度超过最大攀爬速度，则限制它
     if (CurrentSpeed > MaxClimbSpeed)
     {
         FVector LimitedVelocity = CurrentVelocity.GetClampedToMaxSize(MaxClimbSpeed);
@@ -333,7 +333,7 @@ void UClimbingSystem::ApplyClimbingDamping(ACharacter *Character, float DampingF
     if (!MovementComp)
         return;
 
-    // 应用阻尼来减少惯?
+    // 应用阻尼来减少惯性
     FVector DampedVelocity = MovementComp->Velocity * DampingFactor;
     MovementComp->Velocity = DampedVelocity;
 

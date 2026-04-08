@@ -80,6 +80,7 @@ void AOperation_character::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     // checkforword();
+
     if (GetWorldTimerManager().IsTimerActive(TimerSprintDown))
     {
         // 判断速度
@@ -159,11 +160,15 @@ void AOperation_character::SetupPlayerInputComponent(UInputComponent *PlayerInpu
         {
             EnhancedInputComponent->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AOperation_character::Move);
         }
-        if (IA_Look)
-
+        if (IA_Look_x)
         {
             UE_LOG(LogTemp, Log, TEXT("--ialook----------------------------------------------------"));
-            EnhancedInputComponent->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AOperation_character::Look);
+            UE_LOG(LogTemp, Log, TEXT("绑定成功"))
+            EnhancedInputComponent->BindAction(IA_Look_x, ETriggerEvent::Triggered, this, &AOperation_character::Look_x);
+        }
+        if (IA_Look_y)
+        {
+            EnhancedInputComponent->BindAction(IA_Look_y, ETriggerEvent::Triggered, this, &AOperation_character::Look_y);
         }
         if (IA_Jump)
         {
@@ -206,6 +211,7 @@ void AOperation_character::SetupPlayerInputComponent(UInputComponent *PlayerInpu
 */
 void AOperation_character::Move(const FInputActionValue &Value)
 {
+    UE_LOG(LogTemp, Log, TEXT("--move----------------------------------------------------"));
 
     if (Character_Status == EStatus::CMS_MoveNotBreak)
         return;
@@ -259,11 +265,14 @@ void AOperation_character::Move(const FInputActionValue &Value)
 
         FHitResult HitResult;
         FVector Location = GetActorLocation();
-        bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Location, Location + GetActorForwardVector() * 100.0f, ECC_Visibility);
+        bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Location,
+                                                         Location + GetActorForwardVector() * 100.0f, ECC_Visibility);
         if (bHit)
         {
-            SetActorRotation(FRotator(HitResult.ImpactNormal.Rotation().Pitch * -1, HitResult.ImpactNormal.Rotation().Yaw + 180, 0));
-            bHit = GetWorld()->LineTraceSingleByChannel(HitResult, GetActorLocation(), GetActorLocation() + GetActorForwardVector() * 80.0f, ECC_Visibility);
+            SetActorRotation(FRotator(HitResult.ImpactNormal.Rotation().Pitch * -1,
+                                      HitResult.ImpactNormal.Rotation().Yaw + 180, 0));
+            bHit = GetWorld()->LineTraceSingleByChannel(HitResult, GetActorLocation(),
+                                                        GetActorLocation() + GetActorForwardVector() * 80.0f, ECC_Visibility);
             if (bHit)
             {
                 SetActorLocation(HitResult.ImpactPoint - (GetActorForwardVector() * (GetCapsuleComponent()->GetUnscaledCapsuleRadius() + 20.0f)));
@@ -276,12 +285,37 @@ void AOperation_character::Move(const FInputActionValue &Value)
         climbvspeed = MoveValue.X * 100.0f;
     }
 }
-void AOperation_character::Look(const FInputActionValue &Value)
+
+void AOperation_character::Look_x(const FInputActionValue &Value)
 {
-    FVector2D LookValue = Value.Get<FVector2D>();
-    // 添加旋转逻辑
-    AddControllerYawInput(LookValue.X);
-    AddControllerPitchInput(LookValue.Y);
+    float LookValue = Value.Get<float>();
+    // UE_LOG(LogTemp, Warning, TEXT("Look_x: Value=%f"), LookValue);
+
+    if (GetController())
+    {
+        AddControllerYawInput(LookValue);
+        // UE_LOG(LogTemp, Warning, TEXT("Look_x: Yaw applied=%f"), LookValue);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Look_x: No controller!"));
+    }
+}
+
+void AOperation_character::Look_y(const FInputActionValue &Value)
+{
+    float LookValue = Value.Get<float>();
+    // UE_LOG(LogTemp, Warning, TEXT("Look_y: Value=%f"), LookValue);
+
+    if (GetController())
+    {
+        AddControllerPitchInput(LookValue);
+        // UE_LOG(LogTemp, Warning, TEXT("Look_y: Pitch applied=%f"), LookValue);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Look_y: No controller!"));
+    }
 }
 void AOperation_character::Jumps(const FInputActionValue &Value)
 {
@@ -514,7 +548,7 @@ void AOperation_character::OnMontageEnded(UAnimMontage *Montage, bool bInterrupt
     // UE_LOG(LogTemp, Warning, TEXT("切换状态"));
     if (Montage == ClimbMontage)
     {
-        // SwitchClimb();
+        SwitchClimb();
     }
 }
 
@@ -558,29 +592,78 @@ void AOperation_character::SwitchClimb()
 /**
  * 是否进入攀爬
  */
-bool AOperation_character::ComeinClimb()
+EClimbType AOperation_character::CheckClimbType()
 {
     FVector CharacterLocation = GetActorLocation();
-    // 画线
     FHitResult HitResult;
     bool IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, CharacterLocation, CharacterLocation + GetActorForwardVector() * 50.0f, ECC_Visibility);
-    if (IsHit && !HitResult.GetActor()->ActorHasTag(FName("notclimb")))
+
+    if (!IsHit || HitResult.GetActor()->ActorHasTag(FName("notclimb")))
     {
-        UE_LOG(LogTemp, Warning, TEXT("-----------------------"));
+        return EClimbType::None;
     }
-    if (IsHit && !HitResult.GetActor()->ActorHasTag(FName("notclimb")))
+
+    // 计算障碍物相对于角色脚底的高度
+    float ObstacleHeight = HitResult.ImpactPoint.Z - (GetActorLocation().Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+
+    UE_LOG(LogTemp, Warning, TEXT("障碍物高度: %.1f cm"), ObstacleHeight);
+
+    // 根据高度判断类型 (单位: cm)
+    if (ObstacleHeight < 80.0f)
+    {
+        return EClimbType::None; // 太矮，直接走过去
+    }
+    else if (ObstacleHeight <= 160.0f)
+    {
+        return EClimbType::Vault; // 胸口高度，适合翻越
+    }
+    else if (ObstacleHeight <= 320.0f)
+    {
+        return EClimbType::Climb; // 较高，需要攀爬
+    }
+    else
+    {
+        return EClimbType::None; // 太高，无法攀爬
+    }
+}
+
+bool AOperation_character::ComeinClimb()
+{
+    EClimbType Type = CheckClimbType();
+    if (Type == EClimbType::None)
+    {
+        return false;
+    }
+
+    FVector CharacterLocation = GetActorLocation();
+    FHitResult HitResult;
+    bool IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, CharacterLocation, CharacterLocation + GetActorForwardVector() * 50.0f, ECC_Visibility);
+
+    if (IsHit)
     {
         FRotator Rotation = HitResult.ImpactNormal.Rotation();
         Rotation.Yaw += 180.0f;
         Rotation.Pitch = Rotation.Pitch * -1.0f;
         SetActorRotation(Rotation);
+
         IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, GetActorLocation(), GetActorLocation() + GetActorForwardVector() * 50.0f, ECC_Visibility);
         if (IsHit)
         {
             SetActorLocation(HitResult.ImpactPoint - (GetActorForwardVector() * (GetCapsuleComponent()->GetUnscaledCapsuleRadius() + 20.0f)));
         }
-        // 进入攀爬状态
+
         SwitchClimb();
+
+        if (Type == EClimbType::Vault)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("进入翻越状态 (Vault)"));
+            // 可在此处添加翻越蒙太奇或逻辑
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("进入攀爬状态 (Climb)"));
+        }
+
         return true;
     }
     return false;
@@ -678,6 +761,8 @@ bool AOperation_character::NextPosition(FVector NextLocation)
                         MotionWarpingComp->AddOrUpdateWarpTarget(EndTarget);
                         PlayAnimMontage(ClimbMontage);
                         ismontage = true;
+                        // SwitchClimb();
+
                         UE_LOG(LogTemp, Warning, TEXT("准备翻越"));
                     }
                     else

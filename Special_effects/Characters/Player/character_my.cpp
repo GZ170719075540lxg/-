@@ -36,6 +36,13 @@ Acharacter_my::Acharacter_my()
     AttackCD.Add(0.5f);
     Tolerance = 0.0f;
     ToleranceMax = 100.0f;
+
+    // 禁用控制器旋转Yaw
+    bUseControllerRotationYaw = false;
+
+    // 启用角色朝向移动方向
+    GetCharacterMovement()->bOrientRotationToMovement = true;
+
     // 遍历枚举类
     for (int32 i = 0; i < static_cast<int32>(ESock::MAX); ++i)
     {
@@ -295,6 +302,7 @@ void Acharacter_my::AttackNormal()
             break;
 
         case EWeaponType::gongjian:
+        {
             Character_Status = EStatus::CMS_Idle;
             bUseControllerRotationYaw = false;
             //
@@ -316,6 +324,30 @@ void Acharacter_my::AttackNormal()
             Weapon->DrawBowMontage(Weapon->ThrowObject, GetActorLocation(), Rotation);
             SpringArm->SetRelativeLocation(FVector(0.0f, 0.f, 0.0f));
             SpringArm->TargetArmLength = 400.f;
+        }
+        break;
+        case EWeaponType::quantou:
+            if (AttackMontageList.Num() > AttackNum)
+            {
+                // 播放攻击动画
+                Character_Status = EStatus::CMS_Attach;
+                PlayAnimMontage(AttackMontageList[AttackNum]);
+                // 设置攻击状态为不可攻击
+                CanAttack = false;
+                // 设置攻击冷却定时器，冷却时间结束后恢复攻击能力
+                GetWorldTimerManager().SetTimer(TimerAttack, [this]()
+                                                { CanAttack = true; }, AttackCD[AttackNum], false);
+                // 清理定时器
+                // GetWorldTimerManager().ClearTimer(TimerAttackReset);
+
+                // GetWorldTimerManager().SetTimer(TimerAttackReset, [this]()
+                //                                 { ClearAttackNum(); }, AttackCDNow[AttackNum], false);
+                UpdateAttackNum();
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("没有技能"));
+            }
             break;
         }
         // 检查当前攻击序号对应的动画是否存在

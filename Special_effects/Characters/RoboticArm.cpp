@@ -11,7 +11,7 @@ ARoboticArm::ARoboticArm()
     // 设置此actor每帧调用
     PrimaryActorTick.bCanEverTick = true;
 
-    // 创建根组?
+    // 创建根组件
     RootComp = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
     SetRootComponent(RootComp);
 
@@ -36,11 +36,11 @@ ARoboticArm::ARoboticArm()
 
     Joint6Comp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Joint6"));
     Joint6Comp->SetupAttachment(Joint5Comp);
-    // 机械臂对?
+    // 机械臂对象
 }
 void ARoboticArm::RotateJoint1(bool bClockwise)
 {
-    // 空判?
+    // 空判断
     if (!Joint1Comp)
         return;
     // 当前角度
@@ -68,39 +68,39 @@ void ARoboticArm::RotateJoint1(bool bClockwise)
 }
 void ARoboticArm::RotateJoint2(bool bClockwise)
 {
-    // 使用四元数进行旋转控?
+    // 使用四元数进行旋转控制
     FQuat CurrentQuat = Joint2Comp->GetRelativeRotation().Quaternion();
 
-    // 定义绕Y轴的旋转四元?关节2是俯仰运?
+    // 定义绕Y轴的旋转四元数(关节2是俯仰运动)
     float RotationAngle = bClockwise ? 5.0f : -5.0f;
     FQuat DeltaRotation = FQuat(FVector(0, 1, 0), FMath::DegreesToRadians(RotationAngle));
 
     // 应用相对旋转
     FQuat NewQuat = CurrentQuat * DeltaRotation;
 
-    // 转换回欧拉角进行限制检?
+    // 转换回欧拉角进行限制检查
     FRotator NewRotation = NewQuat.Rotator();
 
     UE_LOG(LogTemp, Warning, TEXT("Rotating Joint2 - Current Pitch: %f, Target Pitch: %f"),
            Joint2Comp->GetRelativeRotation().Pitch, NewRotation.Pitch);
 
-    // 角度限制检?
+    // 角度限制检查
     if (NewRotation.Pitch >= 0 && NewRotation.Pitch <= 180)
     {
-        // 在有效范围内，应用旋转?
+        // 在有效范围内，应用旋转
         Joint2Comp->SetRelativeRotation(NewRotation);
         UE_LOG(LogTemp, Warning, TEXT("Joint2 rotation applied: %f"), NewRotation.Pitch);
     }
     else
     {
-        // 超出限制范围，保持当前位?
+        // 超出限制范围，保持当前位置
         UE_LOG(LogTemp, Warning, TEXT("Joint2 rotation limit reached, staying at: %f"),
                Joint2Comp->GetRelativeRotation().Pitch);
     }
 }
 void ARoboticArm::RotateJoint3(bool bClockwise)
 {
-    // 简化直接测试版?- 通过实验确定正确行为
+    // 简化直接测试版本 - 通过实验确定正确行为
     FRotator CurrentRotation = Joint3Comp->GetRelativeRotation();
     float CurrentPitch = CurrentRotation.Pitch;
 
@@ -108,13 +108,13 @@ void ARoboticArm::RotateJoint3(bool bClockwise)
     UE_LOG(LogTemp, Warning, TEXT("Current Pitch: %f"), CurrentPitch);
     UE_LOG(LogTemp, Warning, TEXT("Input bClockwise: %s"), bClockwise ? TEXT("TRUE") : TEXT("FALSE"));
 
-    // 直接尝试运动，观察实际效?
+    // 直接尝试运动，观察实际效果
     float TestDelta = bClockwise ? 5.0f : -5.0f;
     float TargetPitch = CurrentPitch + TestDelta;
 
     UE_LOG(LogTemp, Warning, TEXT("Attempting delta: %f, Target: %f"), TestDelta, TargetPitch);
 
-    // 应用硬限?
+    // 应用硬限制
     float FinalPitch = FMath::Clamp(TargetPitch, -90.0f, 90.0f);
 
     // 检查是否真的要移动
@@ -215,7 +215,7 @@ void ARoboticArm::ExecuteCommand(FString Command)
     // 解析命令并执行相应的操作
     /*
     1:关机正转
-    q：关?反转
+    q：关节1反转
     2:关节2正转
     w:关节2反转
     3:关节3正转
@@ -232,13 +232,13 @@ void ARoboticArm::ExecuteCommand(FString Command)
     // 准确提取指令数字
     FString ServerCommand;
 
-    // 查找"指令"后面的数值
-    FString SearchText = TEXT("指令");
+    // 查找"指令是"后面的数字
+    FString SearchText = TEXT("指令是");
     int32 Index = Command.Find(SearchText);
 
     if (Index != INDEX_NONE)
     {
-        // "指令"之后开始查找数值
+        // 从"指令是"之后开始查找数字
         int32 StartPos = Index + SearchText.Len();
 
         // 提取后续字符直到遇到非数字字符
@@ -251,20 +251,20 @@ void ARoboticArm::ExecuteCommand(FString Command)
             }
             else if (ServerCommand.Len() > 0)
             {
-                // 已经找到数字，遇到非数字字符就停?
+                // 已经找到数字，遇到非数字字符就停止
                 break;
             }
         }
     }
 
-    // 如果上面的方法没找到，尝试备用方?
+    // 如果上面的方法没找到，尝试备用方案
     if (ServerCommand.IsEmpty())
     {
         // 直接取最后一个字符（假设是数字）
         ServerCommand = Command.Right(1);
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("提取的指? %s"), *ServerCommand);
+    UE_LOG(LogTemp, Warning, TEXT("提取的指令: %s"), *ServerCommand);
     if (ServerCommand == "1")
     {
         // 关机正转

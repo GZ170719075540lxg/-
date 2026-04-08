@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Sock.generated.h"
 
 UENUM(BlueprintType)

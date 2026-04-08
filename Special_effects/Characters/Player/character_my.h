@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h" // ✅ 正确路径
 #include "Camera/CameraComponent.h"
 #include "../../Core/Base/Status.h"

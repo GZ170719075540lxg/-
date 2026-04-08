@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MyDataTable_iteam.h"
 #include "../../../Core/Base/WeaponType.h"
+#include "Engine/SkeletalMesh.h"
 #include "MyDataTable_iteam_weapon.generated.h"
 
 /**
