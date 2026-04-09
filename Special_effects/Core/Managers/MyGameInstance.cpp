@@ -26,7 +26,7 @@ void UMyGameInstance::Init()
     // 延迟加载WebSockets模块，避免在构造函数中加载
     FTimerManager &LocalTimerManager = GetTimerManager();
     LocalTimerManager.SetTimerForNextTick([this]()
-                                     {
+                                          {
         if (!FModuleManager::Get().IsModuleLoaded("WebSockets"))
         {
             FModuleManager::Get().LoadModule("WebSockets");
