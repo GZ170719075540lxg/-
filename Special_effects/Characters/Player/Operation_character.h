@@ -10,8 +10,10 @@
 #include "GameFramework/Character.h"
 #include "../../Core/Base/BackPack.h"
 #include "../../Combat/Items/Item.h"
+#include "./ClimbingSystem.h"
 
 #include "Components/TimelineComponent.h"
+#include "ClimbingSystem.h"
 #include "Operation_character.generated.h"
 
 UENUM(BlueprintType)
@@ -92,6 +94,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (DisplayName = "动画扭曲组件"))
 	TObjectPtr<UMotionWarpingComponent> MotionWarpingComp;
 
+	// Climbing System Component
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (DisplayName = "攀爬系统组件"))
+	TObjectPtr<UClimbingSystem> ClimbingSystemComp;
+
+	// 当前攀爬移动输入（用于动画）
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	FVector2D CurrentClimbInput = FVector2D::ZeroVector;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|属性",
 			  meta = (DisplayName = "左翻越蒙太奇"))
 	TObjectPtr<UAnimMontage> ClimbRightMontage;
@@ -117,18 +127,6 @@ public:
 	TObjectPtr<UAnimMontage> SprintMontage;
 
 	/*状态*/
-	// 攀爬状态
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|攀爬",
-			  meta = (DisplayName = "是否在攀爬"))
-	bool isclimb;
-	// 水平攀爬速度
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|攀爬",
-			  meta = (DisplayName = "水平攀爬速度"))
-	float climbspeed;
-	// 垂直攀爬速度
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|攀爬",
-			  meta = (DisplayName = "垂直攀爬速度"))
-	float climbvspeed;
 	// 正在播放蒙太奇
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|蒙太奇",
 			  meta = (DisplayName = "是否正在播放蒙太奇"))
@@ -207,12 +205,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
 			  meta = (DisplayName = "切换攀爬状态"))
 	void SwitchClimb();
-	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
-			  meta = (DisplayName = "判断攀爬类型"))
-	EClimbType CheckClimbType();
-	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
-			  meta = (DisplayName = "是否进入攀爬状态"))
-	bool ComeinClimb();
 	UFUNCTION(BlueprintCallable, Category = "Character|攀爬",
 			  meta = (DisplayName = "下一刻位置判定"))
 	bool NextPosition(FVector NextLocation);

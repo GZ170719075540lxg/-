@@ -37,6 +37,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Climb")
 	float ClimbVSpeed;
 
+	/** 前后方向速度分量（正=前，负=后） */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Climb")
+	float ClimbForwardSpeed;
+
+	/** 左右方向速度分量（正=右，负=左） */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Climb")
+	float ClimbRightSpeed;
+
 	// ==================== 动画资源 ====================
 
 	/** 站立动画 */

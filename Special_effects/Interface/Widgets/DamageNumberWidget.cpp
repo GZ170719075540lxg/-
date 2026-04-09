@@ -2,6 +2,7 @@
 
 #include "DamageNumberWidget.h"
 #include "Components/TextBlock.h"
+#include "Styling/CoreStyle.h"
 
 UDamageNumberWidget::UDamageNumberWidget(const FObjectInitializer &ObjectInitializer)
     : Super(ObjectInitializer)
@@ -21,7 +22,8 @@ void UDamageNumberWidget::NativeConstruct()
     if (DamageText)
     {
         // 设置默认字体大小和对齐方式
-        DamageText->SetFont(FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Regular.ttf"), 24));
+        FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 24);
+        DamageText->SetFont(FontInfo);
         DamageText->SetJustification(ETextJustify::Center);
     }
 }

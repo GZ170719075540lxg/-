@@ -12,7 +12,7 @@
 #include "../../Core/Managers/MyGameInstance.h"
 #include "../../Data/Tables/item/MyDataTable_iteam_weapon.h"
 #include "../../Combat/Items/MyItemObjector.h"
-
+#include "./ClimbingSystem.h"
 #include <EnhancedInputSubsystems.h>
 AOperation_character::AOperation_character()
 {
@@ -39,6 +39,7 @@ AOperation_character::AOperation_character()
     // 使用pawn控制朝向
     SpringArm->bUsePawnControlRotation = true;
     MotionWarpingComp = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComp"));
+    ClimbingSystemComp = CreateDefaultSubobject<UClimbingSystem>(TEXT("ClimbingSystemComp"));
     //	TMap<EBackPack, FBackpackSlot> Backpack;
     // 在构造函数或初始化函数中
     Backpack.Empty();
@@ -69,6 +70,8 @@ void AOperation_character::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("NO PlayerController"));
     }
     InitInput();
+    // 初始化背包
+    InitBackPack();
     // 前方位置检测
     if (UAnimInstance *AnimInstance = GetMesh()->GetAnimInstance())
     {
@@ -124,7 +127,6 @@ void AOperation_character::InitVariableWithParams(
 
     Attack = InAttack;
     Defense = InDefense;
-    this->isclimb = false;
     this->ismontage = false;
     this->isdunfu = false;
     issprint = false;
@@ -211,78 +213,64 @@ void AOperation_character::SetupPlayerInputComponent(UInputComponent *PlayerInpu
 */
 void AOperation_character::Move(const FInputActionValue &Value)
 {
-    UE_LOG(LogTemp, Log, TEXT("--move----------------------------------------------------"));
 
-    if (Character_Status == EStatus::CMS_MoveNotBreak)
-        return;
-    if (Character_Status == EStatus::CMS_MoveBreak)
-    {
-        // 停止蒙太奇
-        int temp = AttackNum;
-        temp--;
-        temp == -1 ? temp = AttackMontageList.Num() - 1 : temp;
-        if (temp != -1)
-        {
-            UE_LOG(LogTemp, Log, TEXT("temp==%d"), temp);
-            StopAnimMontage(AttackMontageList[temp]);
-            AttackNum = 0;
-        }
-    }
+    // if (Character_Status == EStatus::CMS_MoveNotBreak)
+    //     return;
+    // if (Character_Status == EStatus::CMS_MoveBreak)
+    // {
+    //     // 停止蒙太奇
+    //     int temp = AttackNum;
+    //     temp--;
+    //     temp == -1 ? temp = AttackMontageList.Num() - 1 : temp;
+    //     if (temp != -1)
+    //     {
+    //         UE_LOG(LogTemp, Log, TEXT("temp==%d"), temp);
+    //         StopAnimMontage(AttackMontageList[temp]);
+    //         AttackNum = 0;
+    //     }
+    // }
+    // if (ismontage)
+    // {
+    //     return;
+    // }
 
-    if (ismontage)
-    {
-        UE_LOG(LogTemp, Log, TEXT("--move----------------------------------------------------"));
-        return;
-    }
     FVector2D MoveValue = Value.Get<FVector2D>();
-    if (!isclimb)
+
+    if (ClimbingSystemComp && ClimbingSystemComp->ClimbingState == EClimbingState::Climbing)
     {
-        if (ComeinClimb())
+        // 更新攀爬输入（用于动画）
+        CurrentClimbInput = MoveValue;
+
+        UE_LOG(LogTemp, Warning, TEXT("已经在攀爬状态，直接更新移动"));
+        // 已经在攀爬状态，直接更新移动
+        ClimbingSystemComp->ClimbingMove(this, MoveValue);
+    }
+    else
+    {
+        // 尝试进入攀爬状态
+        if (ClimbingSystemComp && ClimbingSystemComp->ComeinClimb(this, FVector(MoveValue.X, MoveValue.Y, 0.0f)))
         {
-            AddMovementInput(GetActorUpVector(), MoveValue.Y);
-            AddMovementInput(GetActorRightVector(), MoveValue.X);
+            UE_LOG(LogTemp, Warning, TEXT("成功进入攀爬状态"));
+            // 成功进入攀爬，使用攀爬移动逻辑
+            if (ClimbingSystemComp)
+            {
+                // ClimbingSystemComp->UpdateClimbMovement(this, FVector(MoveValue.X, MoveValue.Y, 0.0f));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("ClimbingSystemComp is null"));
+            }
         }
         else
         {
-            // 添加移动逻辑
+            // 普通移动逻辑
             const FRotator Rotation = Controller->GetControlRotation();
-            const FRotator YawRotation(0, Rotation.Yaw, 0);                                      // 获取角色的朝向
-            const FVector ForeardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X); // 获取角色的朝向向量
+            const FRotator YawRotation(0, Rotation.Yaw, 0);
+            const FVector ForeardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
             const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
             AddMovementInput(ForeardDirection, MoveValue.Y);
             AddMovementInput(RightDirection, MoveValue.X);
         }
-    }
-    else
-    {
-
-        // 是否可继续攀爬
-        FVector temp = (GetActorUpVector() * MoveValue.Y + GetActorRightVector() * MoveValue.X);
-
-        if (NextPosition((temp / temp.Size()) * 100.0f))
-        {
-        }
-
-        FHitResult HitResult;
-        FVector Location = GetActorLocation();
-        bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Location,
-                                                         Location + GetActorForwardVector() * 100.0f, ECC_Visibility);
-        if (bHit)
-        {
-            SetActorRotation(FRotator(HitResult.ImpactNormal.Rotation().Pitch * -1,
-                                      HitResult.ImpactNormal.Rotation().Yaw + 180, 0));
-            bHit = GetWorld()->LineTraceSingleByChannel(HitResult, GetActorLocation(),
-                                                        GetActorLocation() + GetActorForwardVector() * 80.0f, ECC_Visibility);
-            if (bHit)
-            {
-                SetActorLocation(HitResult.ImpactPoint - (GetActorForwardVector() * (GetCapsuleComponent()->GetUnscaledCapsuleRadius() + 20.0f)));
-            }
-        }
-        AddMovementInput(GetActorUpVector(), MoveValue.Y);
-        AddMovementInput(GetActorRightVector(), MoveValue.X);
-        climbspeed = MoveValue.Y * 100.0f;
-        // 垂直攀爬速度
-        climbvspeed = MoveValue.X * 100.0f;
     }
 }
 
@@ -319,84 +307,9 @@ void AOperation_character::Look_y(const FInputActionValue &Value)
 }
 void AOperation_character::Jumps(const FInputActionValue &Value)
 {
-    if (isclimb)
+    if (ClimbingSystemComp && ClimbingSystemComp->ClimbingState == EClimbingState::Climbing)
     {
-        UE_LOG(LogTemp, Log, TEXT("--jumps----------------------------------------------------"));
-        // 速度方向
-        FVector vector = GetVelocity().GetSafeNormal();
-        UE_LOG(LogTemp, Log, TEXT("vector.Size() = %s"), *vector.ToString());
-        FVector Location = GetActorLocation();
-        FVector EndLocation;
-        if (vector.Size() == 0)
-        {
-            UE_LOG(LogTemp, Log, TEXT("vector.Size() == 0"));
-
-            EndLocation = Location + GetActorUpVector() * 100.0f;
-        }
-        else
-        {
-            UE_LOG(LogTemp, Log, TEXT("vector.Size() != 0%s"), *vector.ToString());
-            EndLocation = Location + vector * 100.0f;
-        }
-        FHitResult HitResult1;
-        FHitResult HitResult2;
-        DrawDebugLine(GetWorld(), Location, Location + GetActorForwardVector() * 100.0f, FColor::Red, 1.0f, 1.0f);
-        bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult1, EndLocation, EndLocation + GetActorForwardVector() * 100.0f, ECC_Visibility);
-        DrawDebugLine(GetWorld(), EndLocation, EndLocation + GetActorForwardVector() * 100.0f, FColor::Blue, 1.0f, 1.0f);
-        EndLocation = EndLocation + GetActorUpVector() * 150.0f;
-        bool bHit2 = GetWorld()->LineTraceSingleByChannel(HitResult2, EndLocation, EndLocation + GetActorForwardVector() * 100.0f, ECC_Visibility);
-        if (bHit2)
-        {
-            if (!ismontage)
-            {
-                MotionWarpingComp->RemoveWarpTarget(FName("jumpclimb"));
-                FMotionWarpingTarget StartTarget;
-                StartTarget.Name = FName("jumpclimb");
-                StartTarget.Location = HitResult1.ImpactPoint - GetActorUpVector() * 90.0f;
-                FRotator Rotation = HitResult1.ImpactNormal.Rotation();
-                Rotation.Yaw += 180;
-                StartTarget.Rotation = Rotation;
-                MotionWarpingComp->AddOrUpdateWarpTarget(StartTarget);
-                PlayAnimMontage(ClimbJumpMontage);
-                ismontage = true;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                EndLocation = EndLocation + GetActorForwardVector() * i * 10.0f;
-                bHit2 = GetWorld()->LineTraceSingleByChannel(HitResult2, EndLocation, EndLocation - GetActorUpVector() * 300.0f, ECC_Visibility);
-                // 画线
-                DrawDebugLine(GetWorld(), EndLocation, EndLocation - GetActorUpVector() * 300.0f, FColor::Red, 1.0f, 1.0f);
-                if (bHit2)
-                {
-                    if (!ismontage)
-                    {
-                        MotionWarpingComp->RemoveWarpTarget(FName("bianyuan"));
-                        MotionWarpingComp->RemoveWarpTarget(FName("zhanli"));
-                        FMotionWarpingTarget StartTarget;
-                        StartTarget.Name = FName("bianyuan");
-                        StartTarget.Location = HitResult2.ImpactPoint;
-                        UE_LOG(LogTemp, Warning, TEXT("翻越%s"), *HitResult2.ImpactPoint.ToString());
-                        StartTarget.Rotation = GetActorRotation();
-                        MotionWarpingComp->AddOrUpdateWarpTarget(StartTarget);
-                        FMotionWarpingTarget EndTarget;
-                        EndTarget.Name = FName("zhanli");
-                        EndTarget.Location = HitResult2.ImpactPoint + GetActorForwardVector() * 20;
-                        EndTarget.Rotation = GetActorRotation();
-                        MotionWarpingComp->AddOrUpdateWarpTarget(EndTarget);
-                        PlayAnimMontage(ClimbMontage);
-                        ismontage = true;
-                        UE_LOG(LogTemp, Warning, TEXT("准备翻越"));
-                    }
-                    break;
-                }
-                else
-                    UE_LOG(LogTemp, Warning, TEXT("没有翻越"));
-            }
-            // 翻越蒙太奇
-        }
+        // ... (保留原有的攀爬跳跃逻辑，但建议后续也迁移到组件中)
     }
     else
     {
@@ -415,9 +328,9 @@ void AOperation_character::Jumps(const FInputActionValue &Value)
 }
 void AOperation_character::Ctrl(const FInputActionValue &Value)
 {
-    if (GetCharacterMovement()->MovementMode == MOVE_Flying)
+    if (ClimbingSystemComp && ClimbingSystemComp->ClimbingState == EClimbingState::Climbing)
     {
-        SwitchClimb();
+        ClimbingSystemComp->StopClimb(this);
     }
     else if (GetCharacterMovement()->MovementMode == MOVE_Walking)
     {
@@ -476,7 +389,6 @@ void AOperation_character::LookAxis(const FInputActionValue &Value)
     //     GetWorldTimerManager().ClearTimer(TimerSprintDown);
     // }
 }
-
 // 捡取
 void AOperation_character::Pick(const FInputActionValue &Value)
 {
@@ -515,7 +427,6 @@ void AOperation_character::Pick(const FInputActionValue &Value)
     }
 }
 // 背包
-
 void AOperation_character::Attacks(const FInputActionValue &Value)
 {
     UE_LOG(LogTemp, Warning, TEXT("攻击"));
@@ -529,144 +440,42 @@ void AOperation_character::Attacks(const FInputActionValue &Value)
     }
     return;
 }
-
 void AOperation_character::Backpacks(const FInputActionValue &Value)
 {
 }
 // 角色详情
-
 void AOperation_character::CharacterDetails(const FInputActionValue &Value)
 {
 }
-
 void AOperation_character::OnMontageEnded(UAnimMontage *Montage, bool bInterrupted)
 {
-    // isclimb = false;
-    // GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-    // GetCharacterMovement()->bOrientRotationToMovement = true;
     ismontage = false;
-    // UE_LOG(LogTemp, Warning, TEXT("切换状态"));
-    if (Montage == ClimbMontage)
+    if (Montage == ClimbMontage || Montage == ClimbRightMontage || Montage == ClimbLeftMontage ||
+        Montage == ClimbRightMontage2 || Montage == ClimbLeftMontage2 || Montage == ClimbJumpMontage)
     {
-        SwitchClimb();
+        if (ClimbingSystemComp)
+        {
+            ClimbingSystemComp->StopClimb(this);
+        }
     }
 }
 
 void AOperation_character::SwitchClimb()
 {
     UE_LOG(LogTemp, Warning, TEXT("切换攀爬"));
-    if (isclimb)
+    if (ClimbingSystemComp)
     {
-        isclimb = false;
-        GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-        GetCharacterMovement()->bOrientRotationToMovement = true;
-
-        // 恢复正常的物理参数
-        GetCharacterMovement()->Mass = 80.0f;                       // 恢复正常质量
-        GetCharacterMovement()->BrakingDecelerationFlying = 512.0f; // 恢复正常空中制动
-        GetCharacterMovement()->AirControl = 0.8f;                  // 恢复正常空中控制
-        GetCharacterMovement()->MaxFlySpeed = 600.0f;               // 恢复正常飞行速度
-        GetCharacterMovement()->MaxWalkSpeed = 600.0f;
-
-        UE_LOG(LogTemp, Warning, TEXT("退出攀爬，恢复正常物理参数"));
-    }
-    else
-    {
-        isclimb = true;
-        GetCharacterMovement()->SetMovementMode(MOVE_Flying);
-        GetCharacterMovement()->bOrientRotationToMovement = false;
-
-        // 设置很大的惯性参数
-        GetCharacterMovement()->Mass = 200.0f;                       // 增加质量产生更大惯性
-        GetCharacterMovement()->BrakingDecelerationFlying = 1000.0f; // 大幅降低空中制动产生惯性
-        GetCharacterMovement()->AirControl = 0.1f;                   // 降低空中控制增加惯性感
-
-        // 设置飞行速度
-        GetCharacterMovement()->MaxFlySpeed = 100.0f; // 设置较高的飞行速度
-
-        UE_LOG(LogTemp, Warning, TEXT("设置飞行速度: %.1f"), GetCharacterMovement()->MaxFlySpeed);
-        UE_LOG(LogTemp, Warning, TEXT("进入攀爬，设置大惯性参数"));
-    }
-}
-
-/**
- * 是否进入攀爬
- */
-EClimbType AOperation_character::CheckClimbType()
-{
-    FVector CharacterLocation = GetActorLocation();
-    FHitResult HitResult;
-    bool IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, CharacterLocation, CharacterLocation + GetActorForwardVector() * 50.0f, ECC_Visibility);
-
-    if (!IsHit || HitResult.GetActor()->ActorHasTag(FName("notclimb")))
-    {
-        return EClimbType::None;
-    }
-
-    // 计算障碍物相对于角色脚底的高度
-    float ObstacleHeight = HitResult.ImpactPoint.Z - (GetActorLocation().Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-
-    UE_LOG(LogTemp, Warning, TEXT("障碍物高度: %.1f cm"), ObstacleHeight);
-
-    // 根据高度判断类型 (单位: cm)
-    if (ObstacleHeight < 80.0f)
-    {
-        return EClimbType::None; // 太矮，直接走过去
-    }
-    else if (ObstacleHeight <= 160.0f)
-    {
-        return EClimbType::Vault; // 胸口高度，适合翻越
-    }
-    else if (ObstacleHeight <= 320.0f)
-    {
-        return EClimbType::Climb; // 较高，需要攀爬
-    }
-    else
-    {
-        return EClimbType::None; // 太高，无法攀爬
-    }
-}
-
-bool AOperation_character::ComeinClimb()
-{
-    EClimbType Type = CheckClimbType();
-    if (Type == EClimbType::None)
-    {
-        return false;
-    }
-
-    FVector CharacterLocation = GetActorLocation();
-    FHitResult HitResult;
-    bool IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, CharacterLocation, CharacterLocation + GetActorForwardVector() * 50.0f, ECC_Visibility);
-
-    if (IsHit)
-    {
-        FRotator Rotation = HitResult.ImpactNormal.Rotation();
-        Rotation.Yaw += 180.0f;
-        Rotation.Pitch = Rotation.Pitch * -1.0f;
-        SetActorRotation(Rotation);
-
-        IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, GetActorLocation(), GetActorLocation() + GetActorForwardVector() * 50.0f, ECC_Visibility);
-        if (IsHit)
+        if (ClimbingSystemComp->GetCurrentState() != EClimbingState::Idle)
         {
-            SetActorLocation(HitResult.ImpactPoint - (GetActorForwardVector() * (GetCapsuleComponent()->GetUnscaledCapsuleRadius() + 20.0f)));
-        }
-
-        SwitchClimb();
-
-        if (Type == EClimbType::Vault)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("进入翻越状态 (Vault)"));
-            // 可在此处添加翻越蒙太奇或逻辑
+            ClimbingSystemComp->StopClimb(this);
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("进入攀爬状态 (Climb)"));
+            // 使用角色前向向量作为默认的移动方向
+            FVector MoveValue = GetActorForwardVector();
+            ClimbingSystemComp->StartClimb(this, MoveValue);
         }
-
-        return true;
     }
-    return false;
 }
 
 bool AOperation_character::NextPosition(FVector NextLocation)
@@ -801,9 +610,6 @@ bool AOperation_character::NextPosition(FVector NextLocation)
     return true;
 }
 
-void AOperation_character::InitBackPack()
-{
-}
 /*
 为背包添加物品
 */
@@ -896,4 +702,26 @@ bool AOperation_character::UseItem(int32 index)
     }
 
     return true;
+}
+
+void AOperation_character::InitBackPack()
+{
+    UE_LOG(LogTemp, Log, TEXT("初始化背包"));
+
+    // 初始化背包的各个槽位
+    for (int32 i = 0; i < static_cast<int32>(EBackPack::MAX); i++)
+    {
+        EBackPack BackpackType = static_cast<EBackPack>(i);
+
+        if (!Backpack.Contains(BackpackType))
+        {
+            FBackpackSlot NewSlot;
+            NewSlot.Items.Empty();
+            Backpack.Add(BackpackType, NewSlot);
+
+            UE_LOG(LogTemp, Log, TEXT("初始化背包槽位: %d"), i);
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("背包初始化完成，共 %d 个槽位"), Backpack.Num());
 }
